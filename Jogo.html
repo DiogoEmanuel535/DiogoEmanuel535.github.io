@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Osu-Memory</title>
+<style>
+:root{--bg:#081018;--panel:#0b1220;--accent:#6EE7B7;--muted:#9aa6b2}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:#ecf0f1;font-family:Inter,Segoe UI,Roboto,Arial}
+.app{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:12px}
+.header{width:100%;max-width:1024px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hlogo{width:44px;height:44px;background:#07101A;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.title{font-weight:800}
+.container{width:100%;max-width:1024px;background:linear-gradient(180deg,#07111a,#061016);border-radius:12px;padding:12px;border:1px solid #0f1a24}
+.row{display:flex;gap:12px}
+.left{flex:1;min-height:520px}
+.right{width:320px}
+.playArea{background:#000;border-radius:10px;border:4px solid #07131a;height:520px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.grid{position:absolute;inset:0;pointer-events:none;opacity:.06;background-image:linear-gradient(transparent 16px, rgba(255,255,255,0.02) 17px), linear-gradient(90deg, transparent 16px, rgba(255,255,255,0.02) 17px);background-size:17px 17px}
+.hint{position:absolute;left:10px;top:10px;background:rgba(0,0,0,0.45);padding:6px 8px;border-radius:6px;font-size:13px}
+.controls{display:flex;gap:8px;margin-top:10px}
+.btn{background:#0b2530;border:1px solid #0f3a45;padding:8px 10px;border-radius:8px;color:#dff3eb;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid #15323b}
+.info{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.small{font-size:13px;color:var(--muted)}
+.levels{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px}
+.level{background:#071821;border:1px solid #0b2a2f;padding:8px;border-radius:8px;cursor:pointer;text-align:center}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
+.modal.active{display:flex}
+.dialog{width:calc(100% - 40px);max-width:720px;background:#071218;border-radius:10px;padding:18px;border:1px solid #0e2a2f}
+.icon{width:56px;height:56px;display:inline-block}
+svg{image-rendering:pixelated}
+.footer{margin-top:12px;text-align:center;font-size:13px;color:#93a2ad}
+@media(max-width:980px){.right{display:none}.playArea{height:62vh;min-height:420px}}
+
+#mainMenu{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#6a00f4,#0077ff);z-index:100;opacity:1;transition:opacity .35s ease}
+#mainMenu.hide{opacity:0;pointer-events:none}
+.menu-card{width:min(520px,92vw);background:rgba(0,0,0,0.28);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:28px;box-shadow:0 10px 40px rgba(0,0,0,.35);text-align:center}
+.menu-title{font-size:36px;font-weight:900;letter-spacing:.5px;margin:8px 0 18px;text-shadow:0 0 18px rgba(255,255,255,.25)}
+.menu-sub{font-size:14px;opacity:.9;margin-bottom:18px}
+.menu-buttons{display:flex;flex-direction:column;gap:12px}
+.mbtn{--c:#00D4FF;appearance:none;border:none;border-radius:14px;padding:14px 18px;font-size:16px;font-weight:800;color:#051018;background:var(--c);cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:transform .12s ease, box-shadow .12s ease}
+.mbtn:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.32)}
+.mbtn:active{transform:translateY(0)}
+.mbtn.lvls{--c:#FF6B00}
+.mbtn.tuto{--c:#FF3FA4}
+.menu-foot{margin-top:14px;font-size:12px;opacity:.85}
+.topbar-menu{display:inline-flex;gap:8px}
+.playArea{position:relative}
+.playArea::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center, rgba(255,255,255,.06) 0%, rgba(0,0,0,0) 55%), radial-gradient(ellipse at center, rgba(0,0,0,.45) 60%, rgba(0,0,0,0.85) 100%);mix-blend-mode:screen}
+.scanlines{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px);background-size:100% 3px;opacity:.15}
+.hud{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.hud-top{display:flex;justify-content:space-between;align-items:center;padding:8px 10px}
+.hud-chip{background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);padding:6px 10px;border-radius:10px;font-size:13px;backdrop-filter:blur(3px);pointer-events:auto}
+.banner{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);font-weight:900;font-size:44px;letter-spacing:1px;text-shadow:0 2px 16px rgba(0,0,0,.6);opacity:0;pointer-events:none}
+.hit-label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-weight:900;font-size:48px;opacity:0;text-shadow:0 2px 16px rgba(0,0,0,.7);pointer-events:none}
+.progress-bar{position:absolute;left:10px;right:10px;bottom:10px;height:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#00d4ff,#6a00f4);box-shadow:0 0 14px rgba(0,212,255,.4) inset}
+.vol{display:inline-flex;align-items:center;gap:6px}
+.vol input[type=range]{accent-color:#00d4ff;width:120px}
+</style>
+</head>
+<body>
+<div id="mainMenu">
+  <div class="menu-card">
+    <div class="menu-title">Osu‑Memory</div>
+    <div class="menu-sub">Clique rápido + memorização com formas e sons</div>
+    <div class="menu-buttons">
+      <button class="mbtn" id="menuPlayBtn">Jogar</button>
+      <button class="mbtn lvls" id="menuLevelsBtn">Níveis</button>
+      <button class="mbtn tuto" id="menuTutorialBtn">Tutorial</button>
+    </div>
+    <div class="menu-foot">Toque ou clique • Áudio recomendado</div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="header">
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="hlogo">OM</div>
+      <div>
+        <div class="title">Osu-Memory</div>
+        <div class="small">Mistura OSU (click rápido) + memória (ordem + som)</div>
+      </div>
+    </div>
+    <div class="topbar-menu">
+      <button class="btn" id="openMenuBtn">Menu</button>
+      <button class="btn" id="tutorialBtn">Tutorial</button>
+      <button class="btn" id="levelsBtn">Fases</button>
+      <button class="btn" id="resetBtn">Resetar</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row">
+      <div class="left">
+        <div class="playArea" id="playArea">
+          <div class="grid"></div>
+          <div class="scanlines"></div>
+          <div class="hud" id="hud">
+            <div class="hud-top">
+              <div class="hud-chip">Fase <span id="hudPhase">1</span> • <span id="hudMode">Pronto</span></div>
+              <div class="hud-chip">Pontuação: <span id="score">0</span> • Combo: <span id="combo">0</span></div>
+              <div class="hud-chip vol">🔊 <input id="hudVol" type="range" min="0" max="1" step="0.01" value="0.9"/></div>
+            </div>
+            <div class="banner" id="countdownBanner"></div>
+            <div class="hit-label" id="hitLabel"></div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          </div>
+          <div class="hint" id="modeHint">Pressione Iniciar</div>
+        </div>
+
+        <div class="info">
+          <div>Fase: <strong id="currentPhase">1</strong> / 12</div>
+          <div class="small">Modo: <span id="modeLabel">—</span></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn" id="startBtn">Iniciar Fase</button>
+          <button class="btn ghost" id="replayBtn">Repetir Sequência</button>
+        </div>
+      </div>
+
+      <div class="right">
+        <div style="background:#08181f;padding:10px;border-radius:8px;border:1px solid #0b313a">
+          <div style="font-weight:800;margin-bottom:8px">Configurações</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label class="small">Tempo (OSU) <input id="timeRange" type="range" min="350" max="1500" value="900"></label>
+            <label class="small">Volume <input id="volRange" type="range" min="0" max="1" step="0.01" value="0.9"></label>
+            <label class="small">Som: <select id="soundPreset"><option value="tones">Tones (sint)</option><option value="clicks">Clicks</option></select></label>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div style="background:#08181f;padding:10px;border-radius:8px;border:1px solid #0b313a;margin-top:8px">
+          <div style="font-weight:800;margin-bottom:6px">Progresso</div>
+          <div id="progressInfo" class="small">Carregando...</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Toque ou clique — o jogo final não exibe uma paleta fixa das formas.</div>
+  </div>
+</div>
+
+<div class="modal" id="levelsModal"><div class="dialog"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-weight:800">Selecione Fase</div><div><button class="btn" id="closeLevels">Fechar</button></div></div><div class="levels" id="levelsGrid"></div></div></div>
+<div class="modal" id="tutorialModal"><div class="dialog"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-weight:800">Tutorial</div><div><button class="btn" id="closeTutorial">Fechar</button></div></div><div style="line-height:1.5;font-size:14px"><ol><li>Pressione <strong>Iniciar Fase</strong> — começará o modo <em>Click Rápido</em> (OSU): formas aparecem uma a uma.</li><li>Clique / toque rápido em cada forma antes do tempo acabar (apenas um clique por forma).</li><li>Se acertar todas, o jogo entra no modo <em>Memorização</em>: clique nas formas na mesma ordem que você clicou antes.</li><li>Os sons das formas ajudam a memorizar — você pode trocar o preset de som nas configurações.</li></ol></div></div></div>
+
+<script>
+const SHAPES = [
+  {id:'star', svg:`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 1l1.6 3.2L13 5l-2.3 2 .6 3.5L8 9.8 4.7 10.5 5.3 7 3 5l3.4-.8L8 1z" fill="currentColor" stroke="#000" stroke-width="0.4"/></svg>`},
+  {id:'circle', svg:`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="5" fill="currentColor" stroke="#000" stroke-width="0.4"/></svg>`},
+  {id:'square', svg:`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="1" fill="currentColor" stroke="#000" stroke-width="0.4"/></svg>`},
+  {id:'diamond', svg:`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 2l4 6-4 6-4-6 4-6z" fill="currentColor" stroke="#000" stroke-width="0.4"/></svg>`},
+  {id:'heart', svg:`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 14s-5-3.2-6.2-4.8C.9 7 3 3 6.5 4.2 7.7 4.7 8 6 8 6s.3-1.3 1.5-1.8C13 3 15.1 7 14.2 9.2 13 10.8 8 14 8 14z" fill="currentColor" stroke="#000" stroke-width="0.3"/></svg>`}
+];
+
+const COLORS = ['#FFF29D','#BFE86A','#00E5C1','#FF4CE0','#2AFF3B','#FFB0F0','#6EA3A3','#0C33FF','#5FB6FF','#EB6F4A','#8D5EA9','#FFFFFF','#FF1A1A','#8A7F00','#F0D56A'];
+
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const audioCtx = AudioCtx ? new AudioCtx() : null;
+let masterGain = null;
+if(audioCtx){ masterGain = audioCtx.createGain(); masterGain.connect(audioCtx.destination); masterGain.gain.value = 0.9 }
+
+function playTone(freq, type='sine', dur=0.18, when=0){ if(!audioCtx) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type = type; o.frequency.value = freq; g.gain.value = 0.0001; o.connect(g); g.connect(masterGain); const t = audioCtx.currentTime + when; g.gain.linearRampToValueAtTime(0.12, t+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t+dur); o.start(t); o.stop(t+dur+0.02); }
+function playClick(dur=0.06, when=0){ if(!audioCtx) return; const o = audioCtx.createOscillator(); const b = audioCtx.createBiquadFilter(); const g = audioCtx.createGain(); o.type = 'square'; o.frequency.value = 120; b.type='highpass'; b.frequency.value = 800; o.connect(b); b.connect(g); g.connect(masterGain); const t = audioCtx.currentTime + when; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.18, t+0.002); g.gain.exponentialRampToValueAtTime(0.0001, t+dur); o.start(t); o.stop(t+dur+0.02); }
+
+const SHAPE_FREQ = {'star':1100,'circle':880,'square':660,'diamond':550,'heart':440};
+
+const MAX_PHASES = 12;
+let state = {currentPhase:1, unlocked:1, mode:'idle', sequence:[], osuIndex:0, osuTimer:null, osuTimeout:900, playerIndex:0, score:0, combo:0, objStart:0};
+
+function load(){ try{ const raw = localStorage.getItem('om_progress_v1'); if(raw){ const d=JSON.parse(raw); state.unlocked = d.unlocked||1; state.currentPhase = d.currentPhase||1 } }catch(e){} }
+function save(){ localStorage.setItem('om_progress_v1', JSON.stringify({unlocked:state.unlocked,currentPhase:state.currentPhase})); }
+
+const playArea = document.getElementById('playArea');
+const startBtn = document.getElementById('startBtn');
+const replayBtn = document.getElementById('replayBtn');
+const tutorialBtn = document.getElementById('tutorialBtn');
+const tutorialModal = document.getElementById('tutorialModal');
+const closeTutorial = document.getElementById('closeTutorial');
+const levelsBtn = document.getElementById('levelsBtn');
+const levelsModal = document.getElementById('levelsModal');
+const closeLevels = document.getElementById('closeLevels');
+const levelsGrid = document.getElementById('levelsGrid');
+const modeHint = document.getElementById('modeHint');
+const modeLabel = document.getElementById('modeLabel');
+const hudPhase = document.getElementById('hudPhase');
+const hudMode = document.getElementById('hudMode');
+const scoreEl = document.getElementById('score');
+const comboEl = document.getElementById('combo');
+const hudVol = document.getElementById('hudVol');
+const countdownBanner = document.getElementById('countdownBanner');
+const hitLabel = document.getElementById('hitLabel');
+const progressFill = document.getElementById('progressFill');
+const currentPhaseEl = document.getElementById('currentPhase');
+const progressInfo = document.getElementById('progressInfo');
+const timeRange = document.getElementById('timeRange');
+const volRange = document.getElementById('volRange');
+const soundPreset = document.getElementById('soundPreset');
+const resetBtn = document.getElementById('resetBtn');
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+function pick(arr){return arr[randInt(0,arr.length-1)]}
+
+function updateUI(){ currentPhaseEl.textContent = state.currentPhase; progressInfo.innerHTML = `Desbloqueado até Fase <strong>${state.unlocked}</strong>`; modeLabel.textContent = state.mode; hudPhase.textContent = state.currentPhase; hudMode.textContent = state.mode; scoreEl.textContent = state.score; comboEl.textContent = state.combo; }
+
+function renderLevels(){ levelsGrid.innerHTML=''; for(let i=1;i<=MAX_PHASES;i++){ const el=document.createElement('div'); el.className='level'; el.textContent='Fase '+i; if(i>state.unlocked){ el.style.opacity='0.35'; el.style.pointerEvents='none' } el.addEventListener('click', ()=>{ state.currentPhase=i; levelsModal.classList.remove('active'); updateUI(); }); levelsGrid.appendChild(el); } }
+
+function clearShapes(){ [...playArea.querySelectorAll('.shape')].forEach(n=>n.remove()); }
+
+function createShape({shapeId,color,left,top,size=80,clickable=true,scaleAnim=true}){
+  const wrapper = document.createElement('div'); wrapper.className='shape'; wrapper.style.position='absolute'; wrapper.style.left=`${left}px`; wrapper.style.top=`${top}px`; wrapper.style.width=`${size}px`; wrapper.style.height=`${size}px`; wrapper.style.display='flex'; wrapper.style.alignItems='center'; wrapper.style.justifyContent='center'; wrapper.style.cursor = clickable ? 'pointer' : 'default'; wrapper.style.zIndex=50; wrapper.style.transformOrigin='center'; wrapper.style.opacity='0';
+  const shape = SHAPES.find(s=>s.id===shapeId);
+  wrapper.innerHTML = `<div style="width:${size}px;height:${size}px">`+ shape.svg.replace(/currentColor/g, color) + `</div>`;
+  wrapper.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); if(clickable) onShapeClick(shapeId,color,wrapper); });
+  playArea.appendChild(wrapper);
+  requestAnimationFrame(()=>{ wrapper.style.transition='transform .12s, opacity .12s'; wrapper.style.opacity='1'; wrapper.style.transform='scale(1)'; });
+  return wrapper;
+}
+
+function showMenu(){ mainMenu.classList.remove('hide'); }
+function hideMenu(){ mainMenu.classList.add('hide'); }
+
+const mainMenu = document.getElementById('mainMenu');
+const openMenuBtn = document.getElementById('openMenuBtn');
+const menuPlayBtn = document.getElementById('menuPlayBtn');
+const menuLevelsBtn = document.getElementById('menuLevelsBtn');
+const menuTutorialBtn = document.getElementById('menuTutorialBtn');
+
+menuPlayBtn.addEventListener('click', ()=>{ if(audioCtx && audioCtx.state!=='running'){ audioCtx.resume(); } playTone(900,'sine',0.12); hideMenu(); state.playerIndex=0; startPhase(); });
+menuLevelsBtn.addEventListener('click', ()=>{ playClick(0.06); hideMenu(); levelsModal.classList.add('active'); renderLevels(); });
+menuTutorialBtn.addEventListener('click', ()=>{ playClick(0.06); hideMenu(); tutorialModal.classList.add('active'); });
+openMenuBtn.addEventListener('click', ()=>{ showMenu(); });
+
+function startPhase(){
+  clearTimeout(state.osuTimer);
+  clearShapes();
+  state.sequence = [];
+  state.osuIndex = 0;
+  state.playerIndex = 0;
+  state.score = 0;
+  state.combo = 0;
+  state.mode='countdown';
+  state.osuTimeout = parseInt(timeRange.value);
+  const target = 2 + state.currentPhase; // 3..14
+  updateUI();
+  showCountdown(()=>{
+    state.mode='osu';
+    modeHint.textContent = 'Modo OSU: clique rápido nas formas que aparecerem';
+    updateUI();
+    showNextOsu(target);
+  });
+}
+
+function showNextOsu(target){
+  if(state.osuIndex>=target){ setTimeout(()=>enterMemoryMode(), 250); return; }
+  const areaRect = playArea.getBoundingClientRect();
+  const padding = 40; const size = randInt(64,96);
+  const left = randInt(padding, Math.max(padding, areaRect.width - size - padding));
+  const top = randInt(padding, Math.max(padding, areaRect.height - size - padding));
+  const shape = pick(SHAPES);
+  const color = pick(COLORS);
+  const node = createShape({shapeId:shape.id,color,left,top,size,clickable:true});
+  makeHitRing(left, top, size);
+  playShapeSound(shape.id, 0);
+  state.objStart = performance.now();
+  let responded = false;
+  progressFill.style.transition = 'none';
+  progressFill.style.width = '100%';
+  requestAnimationFrame(()=>{
+    progressFill.style.transition = `width ${state.osuTimeout}ms linear`;
+    progressFill.style.width = '0%';
+  });
+  state.osuTimer = setTimeout(()=>{
+    if(responded) return; responded = true; node.style.opacity='0'; setTimeout(()=>node.remove(),160); onOsuMiss();
+  }, state.osuTimeout);
+  node.dataset.expected = JSON.stringify({shapeId:shape.id,color});
+}
+
+function makeHitRing(left, top, size){
+  const r = document.createElement('div');
+  r.style.position='absolute'; r.style.left=left+'px'; r.style.top=top+'px'; r.style.width=size+'px'; r.style.height=size+'px'; r.style.border='3px solid rgba(255,255,255,.55)'; r.style.borderRadius='50%'; r.style.zIndex=30; r.style.pointerEvents='none'; r.style.opacity='0.9';
+  playArea.appendChild(r);
+  r.animate([{transform:'scale(0.6)',opacity:0.9},{transform:'scale(1.4)',opacity:0}],{duration:state.osuTimeout, fill:'forwards', easing:'cubic-bezier(.2,.8,.2,1)'});
+  setTimeout(()=>r.remove(), state.osuTimeout+80);
+}
+
+function onShapeClick(shapeId,color,nodeRef){
+  if(state.mode==='osu' && nodeRef && nodeRef.dataset.expected){
+    clearTimeout(state.osuTimer);
+    const elapsed = performance.now() - state.objStart;
+    const ratio = Math.max(0, Math.min(1, elapsed / state.osuTimeout));
+    let rating = 'Good'; let points = 100;
+    if(ratio <= 0.35){ rating='Perfect'; points=300; }
+    else if(ratio <= 0.7){ rating='Great'; points=200; }
+    state.combo += 1; state.score += points + Math.floor(state.combo*5);
+    showHitLabel(rating);
+
+    state.sequence.push({shapeId, color});
+    nodeRef.style.opacity='0'; setTimeout(()=>nodeRef.remove(),120);
+    state.osuIndex++;
+    playOnClick(shapeId);
+    updateUI();
+    setTimeout(()=> showNextOsu(2 + state.currentPhase), 100);
+    return;
+  }
+  if(state.mode==='memory'){
+    handleMemoryClick(shapeId,color);
+  }
+}
+
+function onOsuMiss(){ state.mode='fail'; state.combo = 0; showHitLabel('Miss'); modeHint.textContent='Tempo esgotado! Reinicie a fase.'; playError(); updateUI(); }
+
+function enterMemoryMode(){ state.mode='memory'; modeHint.textContent='Modo Memória: repita a sequência (sons ajudam)'; updateUI(); clearShapes(); showPhaseBanner('Memória'); presentMemoryPool(); }
+
+function presentMemoryPool(){
+  const pool = new Set(state.sequence.map(s=>`${s.shapeId}|${s.color}`));
+  while(pool.size < Math.min(12, Math.max(6, state.sequence.length+3))){ pool.add(`${pick(SHAPES).id}|${pick(COLORS)}`); }
+  const arr = Array.from(pool);
+  for(let i=arr.length-1;i>0;i--){const j=randInt(0,i);[arr[i],arr[j]]=[arr[j],arr[i]]}
+  const areaRect = playArea.getBoundingClientRect();
+  arr.forEach((token,idx)=>{
+    const [shapeId,color] = token.split('|');
+    const size = randInt(60,88);
+    const left = randInt(20, Math.max(20, areaRect.width - size - 20));
+    const top = randInt(20, Math.max(20, areaRect.height - size - 20));
+    createShape({shapeId, color, left, top, size, clickable:true});
+  });
+}
+
+function handleMemoryClick(shapeId,color){
+  const expected = state.sequence[state.playerIndex];
+  playOnClick(shapeId);
+  if(!expected || expected.shapeId !== shapeId || expected.color !== color){ state.mode='fail'; state.combo=0; showHitLabel('Erro'); modeHint.textContent='Errado! Reinicie a fase ou repita demonstração'; playError(); updateUI(); return; }
+  state.playerIndex++;
+  state.combo += 1; state.score += 150 + Math.floor(state.combo*5);
+  showHitLabel('OK');
+  updateUI();
+  if(state.playerIndex>=state.sequence.length){ state.mode='success'; showPhaseBanner('Completo!'); modeHint.textContent='Correto! Fase concluída'; playSuccess(); if(state.currentPhase >= state.unlocked && state.unlocked < MAX_PHASES){ state.unlocked = Math.min(MAX_PHASES, state.unlocked+1); } save(); updateUI(); }
+  else { modeHint.textContent = `Acertou ${state.playerIndex}/${state.sequence.length}`; }
+}
+
+function replayDemo(){ if(state.sequence.length===0){ modeHint.textContent='Nenhuma sequência gravada — jogue um OSU primeiro'; return;} state.mode='demo'; clearShapes(); showPhaseBanner('Demo'); modeHint.textContent='Mostrando sequência...'; const areaRect = playArea.getBoundingClientRect(); const size = Math.min(140, areaRect.width*0.22); const left = Math.round((areaRect.width - size)/2); const top = Math.round((areaRect.height - size)/2); state.sequence.forEach((s,i)=>{ setTimeout(()=>{ clearShapes(); createShape({shapeId:s.shapeId,color:s.color,left,top,size,clickable:false}); playShapeSound(s.shapeId,0); }, i*650); }); setTimeout(()=>{ clearShapes(); presentMemoryPool(); state.mode='memory'; showPhaseBanner('Sua Vez'); modeHint.textContent='Repita a sequência'; }, state.sequence.length*650 + 220); }
+
+function playShapeSound(shapeId, when=0){ if(!audioCtx) return; const preset = soundPreset.value; const freq = SHAPE_FREQ[shapeId] || 660; const vol = parseFloat(volRange.value)||0.9; if(masterGain) masterGain.gain.value = vol; if(preset==='tones'){ playTone(freq,'sine',0.16,when); } else { playClick(0.06,when); } }
+function playOnClick(shapeId){ if(!audioCtx) return; playShapeSound(shapeId,0); }
+function playSuccess(){ if(!audioCtx) return; playTone(1200,'sawtooth',0.18); playTone(1600,'sine',0.12,0.08); }
+function playError(){ if(!audioCtx) return; playTone(200,'sawtooth',0.18); }
+
+startBtn.addEventListener('click', ()=>{ if(audioCtx && audioCtx.state!=='running'){ audioCtx.resume(); } state.playerIndex=0; startPhase(); updateUI(); });
+replayBtn.addEventListener('click', ()=>{ replayDemo(); });
+tutorialBtn.addEventListener('click', ()=>{ tutorialModal.classList.add('active'); });
+closeTutorial.addEventListener('click', ()=>{ tutorialModal.classList.remove('active'); });
+levelsBtn.addEventListener('click', ()=>{ levelsModal.classList.add('active'); renderLevels(); });
+closeLevels.addEventListener('click', ()=>{ levelsModal.classList.remove('active'); });
+resetBtn.addEventListener('click', ()=>{ if(confirm('Resetar progresso?')){ localStorage.removeItem('om_progress_v1'); state.unlocked=1; state.currentPhase=1; save(); updateUI(); alert('Progresso resetado'); } });
+
+if(hudVol){ hudVol.addEventListener('input', (e)=>{ const v=parseFloat(e.target.value)||0; if(masterGain) masterGain.gain.value=v; volRange.value = v; }); }
+volRange.addEventListener('input', (e)=>{ const v=parseFloat(e.target.value)||0; if(masterGain) masterGain.gain.value=v; if(hudVol) hudVol.value=v; });
+
+modeHint.addEventListener('click', ()=>{ startBtn.click(); });
+
+function showCountdown(done){
+  const seq = ['3','2','1','GO!'];
+  countdownBanner.style.opacity=0;
+  seq.forEach((t,i)=>{
+    setTimeout(()=>{
+      countdownBanner.textContent=t; countdownBanner.style.opacity=1; countdownBanner.animate([{transform:'translate(-50%,-60%) scale(.8)',opacity:0},{transform:'translate(-50%,-50%) scale(1)',opacity:1}],{duration:180,easing:'ease-out'});
+      setTimeout(()=>{ countdownBanner.style.opacity=0; }, 300);
+    }, i*380);
+  });
+  setTimeout(()=>{ countdownBanner.textContent=''; if(typeof done==='function') done(); }, seq.length*380 + 80);
+}
+function showPhaseBanner(text){
+  const el = document.createElement('div'); el.className='banner'; el.textContent=text; playArea.appendChild(el);
+  el.style.opacity=0; el.animate([{transform:'translate(-50%,-60%) scale(.9)',opacity:0},{transform:'translate(-50%,-50%) scale(1)',opacity:1}],{duration:220,easing:'ease-out'});
+  setTimeout(()=>{ el.animate([{opacity:1},{opacity:0}],{duration:300}); setTimeout(()=>el.remove(),320); }, 720);
+}
+function showHitLabel(text){
+  hitLabel.textContent = text; hitLabel.style.opacity=1; let color='#fff'; if(text==='Perfect') color='#00d4ff'; else if(text==='Great') color='#6a00f4'; else if(text==='Good' || text==='OK') color='#aaff66'; else color='#ff4c4c';
+  hitLabel.style.color=color; hitLabel.animate([{transform:'translate(-50%,-50%) scale(.8)',opacity:.1},{transform:'translate(-50%,-55%) scale(1.1)',opacity:1},{transform:'translate(-50%,-60%) scale(1)',opacity:0}],{duration:520,easing:'cubic-bezier(.2,.8,.2,1)'});
+  setTimeout(()=>{ hitLabel.style.opacity=0; }, 520);
+}
+
+window._om = {state, startPhase, replayDemo, showMenu, hideMenu};
+
+load(); renderLevels(); updateUI();
+</script>
+</body>
+</html>
+  
